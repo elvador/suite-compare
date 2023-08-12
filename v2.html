@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pairwise Image Comparison</title>
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+    <header>
+        <h1>Pairwise Image Comparison</h1>
+    </header>
+    <div id="content">
+        <div class="veto-list" id="vetoList"></div>
+        <div class="button-container">
+            <button class="button" id="startButton">Start Pairwise Comparison</button>
+        </div>
+        <div id="imageContainer"></div>
+        <div id="progressBar">
+            <div id="progressFill"></div>
+        </div>
+        <div id="standings"></div>
+    </div>
+    <script>
+        const images = [
+            "bakehouse.png",
+            "biscuit.png",
+            "clean.png",
+            "country.jpg",
+            "fittingly.jpg",
+            "genzen.jpg",
+            "gray.png",
+            "latte.jpg",
+            "marsh.jpg",
+            "mononoke.png",
+            "neutral.jpg",
+            "nordic.jpg",
+            "nutmeg.png",
+            "paris.jpg",
+            "pottery.jpg",
+            "sandy.jpg",
+            "stone.png",
+            "sydney.png",
+            "terracotta.jpg",
+            "tiffany.jpg",
+            "wood.png",
+        ];
+
+        const imageContainer = document.getElementById('imageContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const standings = document.getElementById('standings');
+        const vetoList = document.getElementById('vetoList');
+        const startButton = document.getElementById('startButton');
+        const comparisons = {};
+
+        let currentComparisonIndex = 0;
+        let selectedImages = [];
+        let vetoedOptions = [];
+
+        function createImageElement(filename) {
+            const img = document.createElement('img');
+            img.src = filename;
+            img.addEventListener('click', () => handleImageClick(filename));
+            return img;
+        }
+
+        function handleImageClick(chosenImage) {
+            // Handle the user's choice
+            const [imageA, imageB] = selectedImages[currentComparisonIndex];
+            const chosenItem = chosenImage === imageA ? imageA : imageB;
+            comparisons[chosenItem] = comparisons[chosenItem] ? comparisons[chosenItem] + 1 : 1;
+
+            // Move to the next comparison
+            currentComparisonIndex++;
+
+            // Update the progress bar
+            const progressPercentage = ((currentComparisonIndex + 1) / selectedImages.length) * 100;
+            progressFill.style.width = `${progressPercentage}%`;
+
+            // Update the images for the next comparison
+            updateImages();
+
+            // Display current standings
+            displayCurrentStandings();
+        }
+
+        function generateAllComparisons(items) {
+            const comparisons = [];
+            for (let i = 0; i < items.length - 1; i++) {
+                for (let j = i + 1; j < items.length; j++) {
+                    comparisons.push([items[i], items[j]]);
+                }
+            }
+            return comparisons.filter(pair => !vetoedOptions.includes(pair[0]) && !vetoedOptions.includes(pair[1]));
+        }
+
+        function shuffleArray(array) {
+            const shuffledArray = [...array];
+            for (let i = shuffledArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];
+            }
+            return shuffledArray;
+        }
+
+        function updateImages() {
+            if (currentComparisonIndex < selectedImages.length) {
+                imageContainer.innerHTML = '';
+
+                const [imageA, imageB] = selectedImages[currentComparisonIndex];
+
+                imageContainer.appendChild(createImageElement(imageA));
+                imageContainer.appendChild(createImageElement(imageB));
+            } else {
+                console.log('All comparisons done');
+                displayRankings();
+                imageContainer.style.display = 'none'; // Hide the images
+                progressBar.style.display = 'none'; // Hide the progress bar
+            }
+        }
+
+        function displayCurrentStandings() {
+            const sortedItems = Object.keys(comparisons).sort((a, b) => comparisons[b] - comparisons[a]);
+
+            standings.innerHTML = '<h2>Current Standings:</h2>';
+            sortedItems.forEach((image, index) => {
+                const listItem = document.createElement('p');
+                listItem.textContent = `${index + 1}. ${image} - Score: ${comparisons[image]}`;
+                standings.appendChild(listItem);
+            });
+        }
+
+        function displayRankings() {
+            const sortedItems = Object.keys(comparisons).sort((a, b) => comparisons[b] - comparisons[a]);
+
+            standings.innerHTML = '<h2>Final Standings:</h2>';
+            sortedItems.forEach((image, index) => {
+                const listItem = document.createElement('p');
+                listItem.textContent = `${index + 1}. ${image} - Score: ${comparisons[image]}`;
+                standings.appendChild(listItem);
+            });
+        }
+
+        // Display veto list
+        vetoList.innerHTML = '<h2 style="flex-basis: 100%;">Veto Options</h2><p style="flex-basis: 100%; margin-top: -15px;">Vetoed options will not show in the comparison.</p>';
+        images.forEach(image => {
+            const vetoItem = document.createElement('label');
+            vetoItem.classList.add('veto-item', 'selected');
+            vetoItem.innerHTML = `
+      <input type="checkbox" id="${image}" class="veto-checkbox" checked>
+      <img src="${image}" alt="${image}">
+    `;
+            vetoList.appendChild(vetoItem);
+        });
+
+        const vetoCheckboxes = document.querySelectorAll('.veto-checkbox');
+        vetoCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                const image = checkbox.id;
+                if (checkbox.checked) {
+                    vetoedOptions = vetoedOptions.filter(option => option !== image);
+                    checkbox.parentElement.classList.add('selected');
+                } else {
+                    vetoedOptions.push(image);
+                    checkbox.parentElement.classList.remove('selected');
+                }
+                selectedImages = generateAllComparisons(images);
+                startButton.disabled = selectedImages.length === 0;
+            });
+        });
+
+        startButton.addEventListener('click', () => {
+            vetoList.style.display = 'none';
+            startButton.style.display = 'none';
+            currentComparisonIndex = 0;
+            progressFill.style.width = '0';
+            standings.innerHTML = '';
+            selectedImages = generateAllComparisons(images); // Generate after veto
+            selectedImages = shuffleArray(selectedImages);
+            updateImages();
+        });
+
+
+    </script>
+</body>
+
+</html>
